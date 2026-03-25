@@ -1,15 +1,13 @@
+/*
 use core::panic;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::process::exit;
-use std::{env, io};
+use std::{env, io, string};
 
 // command line format : [client/server] ip_address port [filename]
 fn main() {
     let args: Vec<String> = env::args().collect();
-    // 1st command line argument is the ip address
-    // 2nd is the port to be connected to
-
     let state = match args.get(2) {
         Some(bar) => {
             let lower_bar = bar.to_lowercase();
@@ -68,6 +66,7 @@ pub fn server_implementation(connection_string: String) {
         Ok(actual_conn) => {
             println!("connection with the client sucessfull : {:?}", actual_conn);
             for stream in actual_conn.incoming() {
+                println!("Enters loop");
                 handle_client(stream.unwrap());
             }
         }
@@ -85,9 +84,11 @@ fn handle_client(mut tcp_listener: TcpStream) {
     // reading the SYN message from the client and then responding
     let mut resp = String::new();
     let ret = reading_from_client.read_to_string(&mut resp).unwrap();
-    if ret == 0 {
+    if ret != 0 {
         println!("failed to recieve the SYN message from the client");
-        exit(1);
+    } else {
+        println!("reponse from the client : {}", resp);
+        println!("the latter");
     }
 
     // responding with the ACK message
@@ -132,9 +133,9 @@ use std::net::{self, TcpListener, TcpStream};
  **/
 
 pub fn client_implementation(ip_to_connect_to: String, fileName: String) {
-    let mut actual_conn: BufWriter<TcpStream>;
+    let mut writing_from_client_to_server: BufWriter<TcpStream>;
     if let Ok(stream) = TcpStream::connect(&ip_to_connect_to) {
-        actual_conn = BufWriter::new(stream);
+        writing_from_client_to_server = BufWriter::new(stream);
         println!("connection to the server from this client sucessful");
     } else {
         panic!(
@@ -142,9 +143,9 @@ pub fn client_implementation(ip_to_connect_to: String, fileName: String) {
         );
     }
 
-    let mut read_conn: BufReader<TcpStream>;
+    let mut reading_content_on_client_sent_from_server: BufReader<TcpStream>;
     if let Ok(stream) = TcpStream::connect(&ip_to_connect_to) {
-        read_conn = BufReader::new(stream);
+        reading_content_on_client_sent_from_server = BufReader::new(stream);
     } else {
         panic!(
             "connection to the server unsucessful, please check the ip to which you are connecting to once again"
@@ -152,9 +153,16 @@ pub fn client_implementation(ip_to_connect_to: String, fileName: String) {
     }
 
     // Task 1 : to send the SYN and then recieve the ACK message
-    actual_conn.write_all(b"hello from the client");
+    let bait = String::from("hello from the client");
+    let ret = writing_from_client_to_server.write_all(bait.as_bytes());
+
+    match ret {
+        Ok(_) => println!("looks like it worked"),
+        Err(er) => panic!("This is the error : {}", er),
+    };
+
     let mut buf = String::new();
-    let ret = read_conn.read_line(&mut buf).unwrap();
+    let ret = reading_content_on_client_sent_from_server.read_to_string(&mut buf);
 
     if buf != "hello from the server" {
         panic!(
@@ -163,9 +171,11 @@ pub fn client_implementation(ip_to_connect_to: String, fileName: String) {
     }
 
     // Task 2 : Send the path of the file that you want
-    actual_conn.write_all(fileName.as_bytes());
+    writing_from_client_to_server.write_all(fileName.as_bytes());
     let mut file_content = String::new();
-    let _file_ret = read_conn.read_to_string(&mut file_content).unwrap();
+    let _file_ret = reading_content_on_client_sent_from_server
+        .read_to_string(&mut file_content)
+        .unwrap();
 
     let foo1: Vec<&str> = fileName.rsplit("/").collect();
     let local_file_name = foo1.last().unwrap();
@@ -174,4 +184,19 @@ pub fn client_implementation(ip_to_connect_to: String, fileName: String) {
     loacl_actual_file.write_all(file_content.as_bytes());
 
     println!("File transfer complete ! ");
+}
+*/
+
+use crate::{client::client_call, server::server_implementation};
+use std::env;
+
+mod client;
+mod server;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    match args.get(2) {
+        Some(val) => client_call(),
+        _ => server_implementation(),
+    }
 }
