@@ -196,7 +196,7 @@ mod server;
 fn main() {
     let args: Vec<String> = env::args().collect();
     match args.get(2) {
-        Some(val) => client_call(),
+        Some(_) => client_call(),
         _ => server_implementation(),
     }
 }
